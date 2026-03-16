@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { NextPage } from 'next';
+import type { NextPage, GetServerSideProps } from 'next';
 import Head from 'next/head';
 
 import CommonLayout from 'components/v2/Layout';
@@ -24,6 +24,11 @@ const Cart: NextPage = () => {
       </CommonLayout>
     </>
   );
+};
+
+// Force SSR — prevents React 19 + Recoil static prerender crash on Vercel
+export const getServerSideProps: GetServerSideProps = async () => {
+  return { props: {} };
 };
 
 export default Cart;

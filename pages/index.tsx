@@ -5,7 +5,7 @@ import { homePageBookSumState, homePageQueryState } from 'atoms';
 import CommonLayout from 'components/v2/Layout';
 import { FilteredChips } from 'components/v2/Chips/FilteredChips';
 import Head from 'next/head';
-import type { NextPage } from 'next';
+import type { NextPage, GetServerSideProps } from 'next';
 import { PAGE_SIZE } from 'const';
 import Pagination from 'components/v2/Pagination';
 import { Suspense } from 'react';
@@ -51,6 +51,11 @@ const Home: NextPage = () => {
       </CommonLayout>
     </>
   );
+};
+
+// Force SSR — prevents React 19 + Recoil static prerender crash on Vercel
+export const getServerSideProps: GetServerSideProps = async () => {
+  return { props: {} };
 };
 
 export default Home;
