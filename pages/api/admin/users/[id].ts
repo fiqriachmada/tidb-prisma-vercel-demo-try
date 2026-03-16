@@ -10,11 +10,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const userId = Number(req.query.id);
   if (isNaN(userId)) return res.status(400).json({ error: 'Invalid id' });
 
-  // GET — single user
+  // GET — single user with orders
   if (req.method === 'GET') {
     const user = await (prisma.user.findUnique as any)({
       where: { id: userId },
-      select: { id: true, nickname: true, name: true, email: true, role: true, balance: true, createdAt: true },
+      select: {
+        id: true, nickname: true, name: true, email: true,
+        role: true, balance: true, createdAt: true,
+        orders: {
+          take: 50,
+          orderBy: { orderedAt: 'desc' },
+          include: {
+            book: { select: { id: true, title: true, price: true, type: true } },
+          },
+        },
+        ratings: {
+          take: 20,
+          orderBy: { ratedAt: 'desc' },
+          include: { book: { select: { id: true, title: true } } },
+        },
+        _count: { select: { orders: true, ratings: true } },
+      },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
     return res.status(200).json(user);
@@ -32,8 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (password) data.passwordHash = await bcrypt.hash(password, 10);
 
     const user = await (prisma.user.update as any)({
-      where: { id: userId },
-      data,
+      where: { id: userId }, data,
       select: { id: true, nickname: true, name: true, email: true, role: true, balance: true },
     });
     return res.status(200).json(user);

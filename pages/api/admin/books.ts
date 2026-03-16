@@ -6,14 +6,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const admin = await requireAdmin(req, res);
   if (!admin) return;
 
-  // GET — list all books (no pagination for admin)
+  // GET — paginated list of books
   if (req.method === 'GET') {
-    const books = await prisma.book.findMany({
-      take: 200,
-      orderBy: { id: 'asc' },
-      include: { authors: { include: { author: true } } },
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const size = Math.min(100, Math.max(1, Number(req.query.size) || 20));
+    const search = (req.query.search as string) || '';
+    const skip = (page - 1) * size;
+
+    const where = search
+      ? { title: { contains: search } }
+      : undefined;
+
+    const [total, books] = await Promise.all([
+      prisma.book.count({ where }),
+      prisma.book.findMany({
+        where,
+        skip,
+        take: size,
+        orderBy: { id: 'asc' },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          publishedAt: true,
+          stock: true,
+          price: true,
+        },
+      }),
+    ]);
+
+    return res.status(200).json({
+      data: books,
+      total,
+      page,
+      totalPages: Math.ceil(total / size),
     });
-    return res.status(200).json(books);
   }
 
   // POST — create book

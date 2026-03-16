@@ -10,6 +10,7 @@ import axios from 'axios';
 import Image from 'next/image';
 import {
   PencilIcon, TrashIcon, PlusIcon, XMarkIcon,
+  ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { useSnackbar } from 'notistack';
 
@@ -26,20 +27,23 @@ interface AdminBook {
   stock: number;
   price: string;
 }
+interface PagedBooks { data: AdminBook[]; total: number; page: number; totalPages: number; }
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const BOOK_TYPES = Object.values(BookType);
 
 const bookSchema = z.object({
-  title: z.string().min(1, 'Judul wajib diisi'),
-  type: z.string().min(1, 'Tipe wajib diisi'),
-  publishedAt: z.string().min(1, 'Tanggal wajib diisi'),
-  stock: z.coerce.number().min(0),
-  price: z.coerce.number().min(0),
+  title: z.string().min(1),
+  type: z.string().min(1),
+  publishedAt: z.string().min(1),
+  stock: z.preprocess((v) => Number(v ?? 0), z.number().min(0)),
+  price: z.preprocess((v) => Number(v ?? 0), z.number().min(0)),
 });
 type BookForm = z.infer<typeof bookSchema>;
 
-const BOOK_TYPES = Object.values(BookType);
-
 // ─── API helpers ──────────────────────────────────────────────────────────────
-const fetchBooks = () => axios.get('/api/admin/books').then((r) => r.data as AdminBook[]);
+const fetchBooks = (page: number, size: number, search: string) =>
+  axios.get(`/api/admin/books?page=${page}&size=${size}&search=${encodeURIComponent(search)}`).then((r) => r.data as PagedBooks);
 const createBook = (data: BookForm) => axios.post('/api/admin/books', data);
 const updateBook = ({ id, ...data }: BookForm & { id: number }) =>
   axios.put(`/api/admin/books/${id}`, data);
@@ -51,7 +55,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
     <>
       <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-base-100 rounded-2xl shadow-2xl w-full max-w-md relative">
+        <div className="bg-base-100 rounded-2xl shadow-2xl w-full max-w-md">
           <div className="flex items-center justify-between px-6 py-4 border-b border-base-200">
             <h3 className="font-bold text-lg">{title}</h3>
             <button className="btn btn-ghost btn-sm btn-circle" onClick={onClose}>
@@ -67,11 +71,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
 // ─── Book Form ────────────────────────────────────────────────────────────────
 function BookForm({
-  defaultValues,
-  onSubmit,
-  isPending,
-  onClose,
-  submitLabel,
+  defaultValues, onSubmit, isPending, onClose, submitLabel,
 }: {
   defaultValues?: Partial<BookForm>;
   onSubmit: (data: BookForm) => void;
@@ -88,7 +88,6 @@ function BookForm({
       <div className="form-control">
         <label className="label py-1"><span className="label-text text-sm">Judul *</span></label>
         <input className={`input input-bordered input-sm ${errors.title ? 'input-error' : ''}`} {...register('title')} />
-        {errors.title && <span className="text-error text-xs mt-1">{errors.title.message}</span>}
       </div>
       <div className="form-control">
         <label className="label py-1"><span className="label-text text-sm">Tipe *</span></label>
@@ -98,11 +97,10 @@ function BookForm({
             <option key={t} value={t}>{t.replaceAll('_nbsp_', ' ').replaceAll('_amp_', '&')}</option>
           ))}
         </select>
-        {errors.type && <span className="text-error text-xs mt-1">{errors.type.message}</span>}
       </div>
       <div className="form-control">
         <label className="label py-1"><span className="label-text text-sm">Tanggal Terbit *</span></label>
-        <input type="date" className={`input input-bordered input-sm ${errors.publishedAt ? 'input-error' : ''}`} {...register('publishedAt')} />
+        <input type="date" className="input input-bordered input-sm" {...register('publishedAt')} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="form-control">
@@ -131,33 +129,41 @@ export default function AdminBooks() {
   const [editBook, setEditBook] = React.useState<AdminBook | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<AdminBook | null>(null);
   const [search, setSearch] = React.useState('');
+  const [searchInput, setSearchInput] = React.useState('');
+  const [page, setPage] = React.useState(1);
+  const [size, setSize] = React.useState(20);
 
   const qc = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
 
-  const { data: books = [], isLoading } = useQuery({ queryKey: ['admin-books'], queryFn: fetchBooks });
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-books', page, size, search],
+    queryFn: () => fetchBooks(page, size, search),
+  });
 
-  const filtered = books.filter((b) =>
-    b.title.toLowerCase().includes(search.toLowerCase()) ||
-    b.type.toLowerCase().includes(search.toLowerCase())
-  );
+  const books = data?.data ?? [];
+  const totalPages = data?.totalPages ?? 1;
+
+  // Debounce search
+  React.useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const createMutation = useMutation({
     mutationFn: createBook,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-books'] }); enqueueSnackbar('Buku ditambahkan', { variant: 'success' }); setShowCreate(false); },
-    onError: () => enqueueSnackbar('Gagal menambahkan buku', { variant: 'error' }),
+    onError: () => enqueueSnackbar('Gagal menambahkan', { variant: 'error' }),
   });
-
   const updateMutation = useMutation({
-    mutationFn: (data: BookForm) => updateBook({ ...data, id: editBook!.id }),
+    mutationFn: (d: BookForm) => updateBook({ ...d, id: editBook!.id }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-books'] }); enqueueSnackbar('Buku diperbarui', { variant: 'success' }); setEditBook(null); },
-    onError: () => enqueueSnackbar('Gagal memperbarui buku', { variant: 'error' }),
+    onError: () => enqueueSnackbar('Gagal memperbarui', { variant: 'error' }),
   });
-
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteBook(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-books'] }); enqueueSnackbar('Buku dihapus', { variant: 'success' }); setDeleteTarget(null); },
-    onError: () => enqueueSnackbar('Gagal menghapus buku', { variant: 'error' }),
+    onError: () => enqueueSnackbar('Gagal menghapus', { variant: 'error' }),
   });
 
   return (
@@ -166,15 +172,20 @@ export default function AdminBooks() {
       <AdminLayout title="Manajemen Buku">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
-          <input
-            type="text"
-            placeholder="Cari judul atau tipe..."
-            className="input input-bordered input-sm w-full sm:w-72"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <p className="text-base-content/50 text-sm flex-1">{filtered.length} buku</p>
-          <button className="btn btn-primary btn-sm gap-2" onClick={() => setShowCreate(true)}>
+          <div className="relative w-full sm:w-72">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/40" />
+            <input
+              type="text"
+              placeholder="Cari judul buku..."
+              className="input input-bordered input-sm w-full pl-9"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </div>
+          <p className="text-base-content/50 text-sm flex-1">
+            {data ? `${data.total} buku · hal. ${page}/${totalPages}` : '...'}
+          </p>
+          <button className="btn btn-primary btn-sm gap-2 shrink-0" onClick={() => setShowCreate(true)}>
             <PlusIcon className="w-4 h-4" />
             Tambah Buku
           </button>
@@ -199,7 +210,7 @@ export default function AdminBooks() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((b) => (
+                  {books.map((b) => (
                     <tr key={b.id} className="hover">
                       <td>
                         <div className="rounded-lg overflow-hidden w-10 h-14 bg-base-200">
@@ -235,40 +246,69 @@ export default function AdminBooks() {
                           <button className="btn btn-ghost btn-xs" onClick={() => setEditBook(b)}>
                             <PencilIcon className="w-4 h-4" />
                           </button>
-                          <button
-                            className="btn btn-ghost btn-xs text-error hover:bg-error/10"
-                            onClick={() => setDeleteTarget(b)}
-                          >
+                          <button className="btn btn-ghost btn-xs text-error hover:bg-error/10" onClick={() => setDeleteTarget(b)}>
                             <TrashIcon className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
                     </tr>
                   ))}
+                  {!books.length && (
+                    <tr><td colSpan={7} className="text-center py-10 text-base-content/40">Tidak ada buku ditemukan</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
           )}
         </div>
 
-        {/* Create Modal */}
+        {/* ── Pagination footer ─────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-base-content/50">Tampilkan</span>
+            <select
+              className="select select-bordered select-sm w-20"
+              value={size}
+              onChange={(e) => { setSize(Number(e.target.value)); setPage(1); }}
+            >
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+            <span className="text-base-content/50">per halaman</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              <ChevronLeftIcon className="w-4 h-4" />
+              Prev
+            </button>
+            <span className="text-sm font-medium px-2">{page} / {totalPages}</span>
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+              <ChevronRightIcon className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Modals */}
         {showCreate && (
           <Modal title="Tambah Buku Baru" onClose={() => setShowCreate(false)}>
             <BookForm onSubmit={createMutation.mutate} isPending={createMutation.isPending} onClose={() => setShowCreate(false)} submitLabel="Tambah Buku" />
           </Modal>
         )}
-
-        {/* Edit Modal */}
         {editBook && (
           <Modal title={`Edit: ${editBook.title}`} onClose={() => setEditBook(null)}>
             <BookForm
-              defaultValues={{
-                title: editBook.title,
-                type: editBook.type,
-                publishedAt: editBook.publishedAt.slice(0, 10),
-                stock: editBook.stock,
-                price: Number(editBook.price),
-              }}
+              defaultValues={{ title: editBook.title, type: editBook.type, publishedAt: editBook.publishedAt.slice(0, 10), stock: editBook.stock, price: Number(editBook.price) }}
               onSubmit={updateMutation.mutate}
               isPending={updateMutation.isPending}
               onClose={() => setEditBook(null)}
@@ -276,21 +316,12 @@ export default function AdminBooks() {
             />
           </Modal>
         )}
-
-        {/* Delete Confirm */}
         {deleteTarget && (
           <Modal title="Hapus Buku" onClose={() => setDeleteTarget(null)}>
-            <p className="text-base-content/70 mb-4">
-              Yakin ingin menghapus buku <strong>"{deleteTarget.title}"</strong>?
-              Semua rating dan pesanan terkait akan dihapus.
-            </p>
+            <p className="text-base-content/70 mb-4">Yakin hapus <strong>"{deleteTarget.title}"</strong>? Semua rating dan pesanan terkait akan dihapus.</p>
             <div className="flex justify-end gap-2">
               <button className="btn btn-ghost btn-sm" onClick={() => setDeleteTarget(null)}>Batal</button>
-              <button
-                className="btn btn-error btn-sm"
-                disabled={deleteMutation.isPending}
-                onClick={() => deleteMutation.mutate(deleteTarget.id)}
-              >
+              <button className="btn btn-error btn-sm" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(deleteTarget.id)}>
                 {deleteMutation.isPending && <span className="loading loading-spinner loading-xs" />}
                 Hapus
               </button>
