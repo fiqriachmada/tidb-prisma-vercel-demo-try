@@ -4,11 +4,12 @@ import { useSnackbar } from 'notistack';
 import { PlusIcon, MinusIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 import { useRecoilState } from 'recoil';
-import { shoppingCartState, currentUserIdState } from 'atoms';
+import { shoppingCartState } from 'atoms';
 
 import { shoppingCartItemProps } from 'const';
 import { currencyFormat, calcCartItemTotalPrice } from 'lib/utils';
 import { buyBook } from 'lib/http';
+import { useAuthGuard } from 'hooks/useAuthGuard';
 
 export default function ShoppingCartListItem(props: shoppingCartItemProps) {
   const {
@@ -25,7 +26,7 @@ export default function ShoppingCartListItem(props: shoppingCartItemProps) {
   const [loading, setLoading] = React.useState(false);
 
   const [shoppingCart, setShoppingCart] = useRecoilState(shoppingCartState);
-  const [currentUserId] = useRecoilState(currentUserIdState);
+  const { requireAuth } = useAuthGuard();
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -70,7 +71,7 @@ export default function ShoppingCartListItem(props: shoppingCartItemProps) {
   const handleBuyClick = async () => {
     setLoading(true);
     const response = await buyBook(id, {
-      userID: currentUserId,
+      userID: '1',
       quality: quantity,
     });
     if (response.error) {
@@ -160,9 +161,12 @@ export default function ShoppingCartListItem(props: shoppingCartItemProps) {
                 <TrashIcon className='stroke-current shrink-0 w-6 h-6' />
                 Delete
               </button>
+
+              {/* ── Auth-guarded checkout button ─────────────────────────── */}
               <button
+                id={`checkout-btn-${id}`}
                 className='btn btn-sm btn-info'
-                onClick={handleBuyClick}
+                onClick={() => requireAuth(handleBuyClick, 'checkout')}
                 disabled={loading}
               >
                 {loading && <span className='loading loading-spinner' />}

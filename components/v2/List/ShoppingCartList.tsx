@@ -5,21 +5,31 @@ import { useRecoilState } from 'recoil';
 import { shoppingCartState } from 'atoms';
 import { calcCartItemSum, calcCartItemTotalPrice } from 'lib/utils';
 import ShoppingCartListItem from 'components/v2/List/ShoppingCartListItem';
+import LoginWarning from 'components/v2/Auth/LoginWarning';
+import { useCurrentUser } from 'hooks/useCurrentUser';
 
 export default function ShoppingCartList() {
   const [shoppingCart] = useRecoilState(shoppingCartState);
+  const { isAuthenticated, isLoading } = useCurrentUser();
 
   return (
     <div className='flex flex-col gap-4 py-4'>
+      {/* Auth warning shown when user is not logged in and cart has items */}
+      {!isLoading && !isAuthenticated && !!shoppingCart.length && (
+        <LoginWarning message='Anda harus masuk terlebih dahulu untuk melanjutkan checkout.' />
+      )}
+
       {shoppingCart.map((cartItem) => (
         <ShoppingCartListItem key={cartItem.id} {...cartItem} />
       ))}
+
       {!!shoppingCart.length && (
         <SubTotal
           sum={calcCartItemSum(shoppingCart)}
           price={calcCartItemTotalPrice(shoppingCart)}
         />
       )}
+
       {!shoppingCart.length && <EmptyCartAlert />}
     </div>
   );
