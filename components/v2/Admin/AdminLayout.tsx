@@ -5,7 +5,7 @@ import {
   HomeIcon,
   UsersIcon,
   BookOpenIcon,
-  ChartBarIcon,
+  ClipboardDocumentListIcon,
   ArrowLeftOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
@@ -23,6 +23,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/admin', icon: HomeIcon },
   { label: 'Users', href: '/admin/users', icon: UsersIcon },
   { label: 'Books', href: '/admin/books', icon: BookOpenIcon },
+  { label: 'Orders', href: '/admin/orders', icon: ClipboardDocumentListIcon },
 ];
 
 interface AdminLayoutProps {
