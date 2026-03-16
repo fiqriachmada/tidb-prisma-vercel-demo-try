@@ -8,8 +8,7 @@ import {
 
 import BookTypeMenu from 'components/v2/Layout/BookTypeMenu';
 import ProfileMenu from 'components/v2/Auth/ProfileMenu';
-import { shoppingCartState } from 'atoms';
-import { useRecoilState } from 'recoil';
+import { useCartStore } from 'store';
 
 import { calcCartItemSum } from 'lib/utils';
 
@@ -20,7 +19,7 @@ export interface HeaderProps {
 export default function Header(props: HeaderProps) {
   const { hideMenu } = props;
 
-  const [shoppingCart] = useRecoilState(shoppingCartState);
+  const cart = useCartStore((s) => s.cart);
 
   return (
     <>
@@ -49,9 +48,9 @@ export default function Header(props: HeaderProps) {
           <NextLink href='/cart' className='btn btn-ghost btn-circle'>
             <div className='indicator'>
               <ShoppingCartIcon className='w-6 h-6' />
-              {calcCartItemSum(shoppingCart) > 0 && (
+              {calcCartItemSum(cart) > 0 && (
                 <span className='badge badge-sm badge-primary indicator-item'>
-                  {calcCartItemSum(shoppingCart)}
+                  {calcCartItemSum(cart)}
                 </span>
               )}
             </div>

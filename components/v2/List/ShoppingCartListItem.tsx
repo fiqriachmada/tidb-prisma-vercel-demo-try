@@ -3,91 +3,50 @@ import Image from 'next/image';
 import { useSnackbar } from 'notistack';
 import { PlusIcon, MinusIcon, TrashIcon } from '@heroicons/react/24/outline';
 
-import { useRecoilState } from 'recoil';
-import { shoppingCartState } from 'atoms';
-
+import { useCartStore } from 'store';
 import { shoppingCartItemProps } from 'const';
 import { currencyFormat, calcCartItemTotalPrice } from 'lib/utils';
 import { buyBook } from 'lib/http';
 import { useAuthGuard } from 'hooks/useAuthGuard';
+import { useCurrentUser } from 'hooks/useCurrentUser';
 
 export default function ShoppingCartListItem(props: shoppingCartItemProps) {
-  const {
-    id,
-    title,
-    authors,
-    type,
-    price,
-    averageRating,
-    quantity,
-    stock,
-    publishedAt,
-  } = props;
+  const { id, title, authors, type, price, quantity, stock, publishedAt } = props;
   const [loading, setLoading] = React.useState(false);
 
-  const [shoppingCart, setShoppingCart] = useRecoilState(shoppingCartState);
+  const { updateQuantity, removeItem } = useCartStore();
   const { requireAuth } = useAuthGuard();
-
+  const { userId } = useCurrentUser();
   const { enqueueSnackbar } = useSnackbar();
 
   function handleAddQty() {
-    setShoppingCart((oldShoppingCart) => {
-      return oldShoppingCart.reduce<shoppingCartItemProps[]>((prev, item) => {
-        if (item.id === id) {
-          prev.push({
-            ...item,
-            quantity: quantity + 1,
-          });
-        } else {
-          prev.push(item);
-        }
-        return prev;
-      }, []);
-    });
+    if (quantity >= stock) return;
+    updateQuantity(String(id), quantity + 1);
   }
 
   function handleRemoveQty() {
-    setShoppingCart((oldShoppingCart) => {
-      return oldShoppingCart.reduce<shoppingCartItemProps[]>((prev, item) => {
-        if (item.id === id) {
-          prev.push({
-            ...item,
-            quantity: quantity - 1,
-          });
-        } else {
-          prev.push(item);
-        }
-        return prev;
-      }, []);
-    });
+    if (quantity <= 1) return;
+    updateQuantity(String(id), quantity - 1);
   }
 
   function deleteItem() {
-    setShoppingCart((oldShoppingCart) => {
-      return [...oldShoppingCart.filter((i) => i.id !== id)];
-    });
+    removeItem(String(id));
   }
 
   const handleBuyClick = async () => {
     setLoading(true);
     const response = await buyBook(id, {
-      userID: '1',
+      userID: userId ?? '1',
       quality: quantity,
     });
     if (response.error) {
-      enqueueSnackbar(`Error: ${response.error}.`, {
-        variant: 'error',
-      });
+      enqueueSnackbar(`Error: ${response.error}.`, { variant: 'error' });
       setLoading(false);
       return;
     }
-    enqueueSnackbar(`${response.content?.message}`, {
-      variant: 'success',
-    });
+    enqueueSnackbar(`${response.content?.message}`, { variant: 'success' });
     setLoading(false);
-    setShoppingCart((oldShoppingCart) => {
-      return oldShoppingCart.filter((i) => i.id !== id);
-    });
+    removeItem(String(id));
   };
 
   return (
@@ -103,10 +62,7 @@ export default function ShoppingCartListItem(props: shoppingCartItemProps) {
         </figure>
         <div className='card-body'>
           <div className='flex flex-col gap-1'>
-            <p>
-              <span className='text-lg font-bold pr-4'>Title:</span>
-              {title}
-            </p>
+            <p><span className='text-lg font-bold pr-4'>Title:</span>{title}</p>
             <p>
               <span className='text-lg font-bold pr-4'>Type:</span>
               {type.replaceAll(`_nbsp_`, ` `).replaceAll(`_amp_`, `&`)}
@@ -115,14 +71,8 @@ export default function ShoppingCartListItem(props: shoppingCartItemProps) {
               <span className='text-lg font-bold pr-4'>Publication date:</span>
               {new Date(publishedAt).toLocaleDateString()}
             </p>
-            <p>
-              <span className='text-lg font-bold pr-4'>Price:</span>
-              {`$ ${currencyFormat(price)}`}
-            </p>
-            <p>
-              <span className='text-lg font-bold pr-4'>In stock:</span>
-              {stock}
-            </p>
+            <p><span className='text-lg font-bold pr-4'>Price:</span>{`$ ${currencyFormat(price)}`}</p>
+            <p><span className='text-lg font-bold pr-4'>In stock:</span>{stock}</p>
             <div className='flex justify-between'>
               <div className='join'>
                 <button
@@ -132,11 +82,7 @@ export default function ShoppingCartListItem(props: shoppingCartItemProps) {
                 >
                   <PlusIcon className='stroke-current shrink-0 w-6 h-6' />
                 </button>
-                <input
-                  className='input input-sm input-bordered join-item w-12'
-                  value={quantity}
-                  disabled
-                />
+                <input className='input input-sm input-bordered join-item w-12' value={quantity} disabled />
                 <button
                   className='btn btn-sm join-item'
                   disabled={quantity <= 1}
@@ -148,9 +94,7 @@ export default function ShoppingCartListItem(props: shoppingCartItemProps) {
               <div className='flex justify-end gap-4'>
                 <div className='font-bold'>
                   <span className='pr-1'>
-                    {quantity === 1
-                      ? `(${quantity} item) $`
-                      : `(${quantity} items) $`}
+                    {quantity === 1 ? `(${quantity} item) $` : `(${quantity} items) $`}
                   </span>
                   {calcCartItemTotalPrice([props])}
                 </div>
@@ -161,8 +105,6 @@ export default function ShoppingCartListItem(props: shoppingCartItemProps) {
                 <TrashIcon className='stroke-current shrink-0 w-6 h-6' />
                 Delete
               </button>
-
-              {/* ── Auth-guarded checkout button ─────────────────────────── */}
               <button
                 id={`checkout-btn-${id}`}
                 className='btn btn-sm btn-info'

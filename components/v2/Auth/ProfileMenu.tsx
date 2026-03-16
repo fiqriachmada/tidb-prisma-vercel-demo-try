@@ -1,10 +1,12 @@
 import * as React from 'react';
+import NextLink from 'next/link';
 import { signOut } from 'next-auth/react';
 import {
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
   SunIcon,
   MoonIcon,
+  Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
 
 import { useCurrentUser } from 'hooks/useCurrentUser';
@@ -12,7 +14,7 @@ import { useTheme } from 'hooks/useTheme';
 import { useAuthModalStore } from 'store';
 
 export default function ProfileMenu() {
-  const { user, isAuthenticated, isLoading } = useCurrentUser();
+  const { user, isAuthenticated, isLoading, isAdmin } = useCurrentUser();
   const { theme, toggleTheme } = useTheme();
   const openModal = useAuthModalStore((s) => s.openModal);
 
@@ -88,7 +90,25 @@ export default function ProfileMenu() {
           <div className="divider my-0" />
         </li>
 
-        {/* Theme toggle */}
+        {/* Admin Dashboard — visible to ADMIN only */}
+        {isAdmin && (
+          <>
+            <li>
+              <NextLink
+                id="admin-dashboard-link"
+                href="/admin"
+                className="flex items-center gap-3 rounded-xl text-primary font-medium hover:bg-primary/10"
+              >
+                <Cog6ToothIcon className="w-5 h-5" />
+                Dashboard Admin
+              </NextLink>
+            </li>
+            <li>
+              <div className="divider my-0" />
+            </li>
+          </>
+        )}
+
         <li>
           <button
             id="theme-toggle-btn"
