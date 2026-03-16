@@ -7,6 +7,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 import BookTypeMenu from 'components/v2/Layout/BookTypeMenu';
+import ProfileMenu from 'components/v2/Auth/ProfileMenu';
 import { shoppingCartState } from 'atoms';
 import { useRecoilState } from 'recoil';
 
@@ -19,7 +20,7 @@ export interface HeaderProps {
 export default function Header(props: HeaderProps) {
   const { hideMenu } = props;
 
-  const [shoppingCart, setShoppingCart] = useRecoilState(shoppingCartState);
+  const [shoppingCart] = useRecoilState(shoppingCartState);
 
   return (
     <>
@@ -43,22 +44,21 @@ export default function Header(props: HeaderProps) {
             Bookstore
           </NextLink>
         </div>
-        <div className='navbar-end'>
+        <div className='navbar-end gap-2'>
+          {/* Shopping Cart */}
           <NextLink href='/cart' className='btn btn-ghost btn-circle'>
             <div className='indicator'>
               <ShoppingCartIcon className='w-6 h-6' />
-              <span className='badge badge-sm indicator-item'>
-                {calcCartItemSum(shoppingCart)}
-              </span>
+              {calcCartItemSum(shoppingCart) > 0 && (
+                <span className='badge badge-sm badge-primary indicator-item'>
+                  {calcCartItemSum(shoppingCart)}
+                </span>
+              )}
             </div>
           </NextLink>
 
-          {/* <button className='btn btn-ghost btn-circle'>
-              <div className='indicator'>
-                <UserIcon className='w-6 h-6' />
-                <span className='badge badge-xs badge-primary indicator-item'></span>
-              </div>
-            </button> */}
+          {/* Profile / Login */}
+          <ProfileMenu />
         </div>
       </div>
     </>
