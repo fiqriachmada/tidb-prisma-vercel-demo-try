@@ -8,9 +8,9 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:generate": "prisma generate",
     "db:seed": "prisma db seed",
-    "setup": "NODE_OPTIONS='--experimental-json-modules' node ./scripts/setup.mjs",
+    "setup": "node --experimental-json-modules ./scripts/setup.mjs",
     "start": "next start",
-    "vercel-build": "export DATABASE_URL=$(node ./scripts/env.mjs) && yarn run prisma:deploy && yarn run setup && yarn run build"
+    "vercel-build": "node --experimental-json-modules ./scripts/vercel-build.mjs"
   },
   "dependencies": {
     "@faker-js/faker": "^10.3.0",
