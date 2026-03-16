@@ -1,39 +1,35 @@
 import * as React from 'react';
 import { useSnackbar } from 'notistack';
-
-import { useRecoilState } from 'recoil';
-import { bookTypeListState, homePageQueryState } from 'atoms';
 import clsx from 'clsx';
 
+import { useHomePageQueryStore } from 'store';
 import { SORT_VALUE } from 'const';
 import { upperCaseEachWord } from 'lib/utils';
 import { fetchBookTypes } from 'lib/http';
 
 export default function BookTypeMenu() {
   const [loadingBookType, setLoadingBookType] = React.useState(false);
+  const [bookTypeList, setBookTypeList] = React.useState<string[]>([]);
 
-  const [bookTypeList, setBookTypeList] = useRecoilState(bookTypeListState);
-  const [homePageQueryData, setHomePageQueryData] =
-    useRecoilState(homePageQueryState);
+  const { query, setQuery } = useHomePageQueryStore();
   const { enqueueSnackbar } = useSnackbar();
 
   React.useEffect(() => {
+    if (bookTypeList.length) return;
     const func = async () => {
       setLoadingBookType(true);
       const res = await fetchBookTypes();
       const { error, content } = res;
       if (error) {
+        enqueueSnackbar(`Error: Fetch Book Types`, { variant: 'error' });
         setLoadingBookType(false);
-        enqueueSnackbar(`Error: Fetch Book Types`, {
-          variant: 'error',
-        });
         return;
       }
       setBookTypeList(content);
       setLoadingBookType(false);
     };
-    !bookTypeList.length && func();
-  }, [bookTypeList.length, enqueueSnackbar, setBookTypeList]);
+    func();
+  }, [bookTypeList.length, enqueueSnackbar]);
 
   return (
     <>
@@ -47,19 +43,9 @@ export default function BookTypeMenu() {
             {bookTypeList.map((bookType) => (
               <li
                 key={bookType}
-                onClick={() => {
-                  setHomePageQueryData({
-                    ...homePageQueryData,
-                    page: 1,
-                    type: bookType,
-                  });
-                }}
+                onClick={() => setQuery({ page: 1, type: bookType })}
               >
-                <span
-                  className={clsx({
-                    active: homePageQueryData.type === bookType,
-                  })}
-                >
+                <span className={clsx({ active: query.type === bookType })}>
                   {bookType.replaceAll(`_nbsp_`, ` `).replaceAll(`_amp_`, `&`)}
                 </span>
               </li>
@@ -73,19 +59,9 @@ export default function BookTypeMenu() {
             {SORT_VALUE.map((sortType) => (
               <li
                 key={sortType}
-                onClick={() => {
-                  setHomePageQueryData({
-                    ...homePageQueryData,
-                    page: 1,
-                    sort: sortType,
-                  });
-                }}
+                onClick={() => setQuery({ page: 1, sort: sortType })}
               >
-                <span
-                  className={clsx({
-                    active: homePageQueryData?.sort === sortType,
-                  })}
-                >
+                <span className={clsx({ active: query.sort === sortType })}>
                   {upperCaseEachWord(sortType.replaceAll(`_`, ` `))}
                 </span>
               </li>
