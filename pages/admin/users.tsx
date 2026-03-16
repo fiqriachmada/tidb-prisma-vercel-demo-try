@@ -1,5 +1,6 @@
 import * as React from 'react';
 import Head from 'next/head';
+import NextLink from 'next/link';
 import { GetServerSideProps } from 'next';
 import { getServerSession } from 'next-auth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -263,7 +264,9 @@ export default function AdminUsers() {
                             {(u.name ?? u.nickname ?? '?')[0]?.toUpperCase() ?? '?'}
                           </div>
                           <div>
-                            <p className="font-medium text-sm leading-tight">{u.name ?? u.nickname}</p>
+                            <NextLink href={`/admin/users/${u.id}`} className="font-medium text-sm leading-tight hover:text-primary transition-colors">
+                              {u.name ?? u.nickname}
+                            </NextLink>
                             <p className="text-xs text-base-content/40">@{u.nickname}</p>
                           </div>
                         </div>

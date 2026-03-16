@@ -1,5 +1,6 @@
 import * as React from 'react';
 import Head from 'next/head';
+import NextLink from 'next/link';
 import { GetServerSideProps } from 'next';
 import { getServerSession } from 'next-auth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -224,7 +225,9 @@ export default function AdminBooks() {
                         </div>
                       </td>
                       <td className="font-medium max-w-[200px]">
-                        <p className="truncate text-sm">{b.title}</p>
+                        <NextLink href={`/admin/books/${b.id}`} className="text-sm hover:text-primary transition-colors line-clamp-1">
+                          {b.title}
+                        </NextLink>
                         <p className="text-xs text-base-content/40">#{b.id}</p>
                       </td>
                       <td>
