@@ -3,7 +3,7 @@ import * as React from 'react';
 import BookReviewsSection from 'components/v2/BookDetails/BookReviewsSection';
 import CommonLayout from 'components/v2/Layout';
 import Head from 'next/head';
-import type { NextPage } from 'next';
+import type { NextPage, GetServerSideProps } from 'next';
 import { bookDetailsIdState } from 'atoms';
 import dynamic from 'next/dynamic';
 import { useRecoilState } from 'recoil';
@@ -16,7 +16,6 @@ const Book: NextPage = () => {
   const { id } = router.query;
 
   const [, setBookDetailsId] = useRecoilState(bookDetailsIdState);
-  // const bookDetailsLodable = useRecoilValueLoadable(bookDetailsQuery);
 
   React.useEffect(() => {
     id && setBookDetailsId(id as string);
@@ -42,4 +41,10 @@ const Book: NextPage = () => {
   );
 };
 
+// Force server-side rendering — prevents Recoil/React 19 static prerender crash
+export const getServerSideProps: GetServerSideProps = async () => {
+  return { props: {} };
+};
+
 export default Book;
+
